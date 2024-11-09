@@ -11,11 +11,10 @@ import (
 	"strings"
 	"time"
 	"sync"
-
 	"golang.org/x/net/dns/dnsmessage"
 )
 
-const OpCodeQuery = 0  // package ins't working so manually added.
+const OpCodeQuery = 0  // package isn't working so manually added.
 
 func main() {
 	delay := flag.Int("delay", 1000, "Delay between requests in milliseconds")
@@ -26,7 +25,7 @@ func main() {
 
 	domains := loadDomains(*domainFile, *singleDomain)
 	if len(domains) == 0 {
-		fmt.Println("Usage: go run main.go -f <domain_file> or -d <single_domain> [-delay <ms>] [-o <output>]")
+		fmt.Println("Usage: sub_sniaX -f <domain_file> or -d <single_domain> [-delay <ms>] [-o <output>]")
 		os.Exit(1)
 	}
 
@@ -45,8 +44,10 @@ func main() {
 		wg.Add(1)
 		go func(domain string) {
 			defer wg.Done()
-			fmt.Printf("\nEnumerating subdomains for %s...\n\n", domain)
-			enumerateSubdomains(domain, *delay, output)
+			// Normalize domain before processing
+			normalizedDomain := normalizeDomain(domain)
+			fmt.Printf("\nEnumerating subdomains for %s...\n\n", normalizedDomain)
+			enumerateSubdomains(normalizedDomain, *delay, output)
 		}(domain)
 	}
 	wg.Wait()
@@ -75,6 +76,22 @@ func loadDomains(domainFile, singleDomain string) []string {
 		domains = append(domains, singleDomain)
 	}
 	return domains
+}
+
+func normalizeDomain(domain string) string {
+	// Remove protocols (http://, https://)
+	if strings.HasPrefix(domain, "https://") {
+		domain = strings.TrimPrefix(domain, "https://")
+	} else if strings.HasPrefix(domain, "http://") {
+		domain = strings.TrimPrefix(domain, "http://")
+	}
+
+	// Remove 'www.' if present
+	if strings.HasPrefix(domain, "www.") {
+		domain = strings.TrimPrefix(domain, "www.")
+	}
+
+	return domain
 }
 
 func enumerateSubdomains(domain string, delay int, output *os.File) {
@@ -173,7 +190,7 @@ func attemptAXFR(domain, ns string, delay int) []string {
 	}
 	return result
 }
-// Cname chaining also 
+
 func cnameChain(domain string) []string {
 	var result []string
 	cnames := make(map[string]bool) // Caching to avoid redundant lookups
@@ -195,7 +212,7 @@ func cnameChain(domain string) []string {
 	}
 	return result
 }
-// SNI Common Subdomain , YOu can add your own too 
+
 func sniEnumerate(domain string, delay int) []string {
 	commonSubdomains := []string{
 		"www", "mail", "ftp", "webmail", "smtp", "portal", "vpn", "api", "dev", "test",
@@ -227,7 +244,7 @@ func sniEnumerate(domain string, delay int) []string {
 	}
 	return result
 }
-// output 2 File
+
 func writeOutput(subdomains []string, output *os.File) {
 	if len(subdomains) > 0 {
 		for _, subdomain := range subdomains {
